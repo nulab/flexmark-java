@@ -38,3 +38,9 @@ target/
 /assets/comms/
 /lib/
 /mvn-dependency-tree.txt
+
+# local
+.vscode/
+.DS_Store
+.devcontainer/
+.claude/
