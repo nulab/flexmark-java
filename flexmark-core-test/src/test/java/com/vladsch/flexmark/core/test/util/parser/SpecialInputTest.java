@@ -131,7 +131,7 @@ final public class SpecialInputTest extends RenderingTestCase {
 
     @Test
     public void uncompletedHugeHtmlTag() {
-        assertRendering("<" + Strings.repeat("a", 1000000), "&lt;" + Strings.repeat("a", 1000000));
+        assertRendering("<" + Strings.repeat("a", 1000000), "<p>&lt;" + Strings.repeat("a", 1000000) + "</p>\n");
     }
 
     @Test
