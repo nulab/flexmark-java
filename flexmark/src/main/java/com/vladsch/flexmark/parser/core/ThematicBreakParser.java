@@ -12,11 +12,56 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 public class ThematicBreakParser extends AbstractBlockParser {
 
-    static Pattern PATTERN = Pattern.compile("^(?:(?:\\*[ \t]*){3,}|(?:_[ \t]*){3,}|(?:-[ \t]*){3,})[ \t]*$");
+    /**
+     * Checks if the given input matches the thematic break pattern without using regex
+     * to avoid StackOverflowError with very long sequences.
+     *
+     * Pattern: ^(?:(?:\*[ \t]*){3,}|(?:_[ \t]*){3,}|(?:-[ \t]*){3,})[ \t]*$
+     * - At least 3 occurrences of *, _, or - characters
+     * - Characters can be separated by spaces or tabs
+     * - Only one type of character allowed per line
+     * - Line can end with spaces or tabs
+     */
+    private static boolean matchesThematicBreak(BasedSequence input) {
+        int length = input.length();
+        if (length == 0) return false;
+
+        // Skip leading whitespace
+        int pos = 0;
+        while (pos < length && isWhitespace(input.charAt(pos))) {
+            pos++;
+        }
+
+        if (pos >= length) return false;
+
+        char patternChar = input.charAt(pos);
+        if (patternChar != '*' && patternChar != '_' && patternChar != '-') {
+            return false;
+        }
+
+        int charCount = 0;
+        while (pos < length) {
+            char c = input.charAt(pos);
+            if (c == patternChar) {
+                charCount++;
+            } else if (isWhitespace(c)) {
+                // Whitespace is allowed between pattern characters
+            } else {
+                // Invalid character found
+                return false;
+            }
+            pos++;
+        }
+
+        return charCount >= 3;
+    }
+
+    private static boolean isWhitespace(char c) {
+        return c == ' ' || c == '\t';
+    }
 
     final private ThematicBreak block = new ThematicBreak();
 
@@ -96,7 +141,7 @@ public class ThematicBreakParser extends AbstractBlockParser {
             }
             BasedSequence line = state.getLine();
             final BasedSequence input = line.subSequence(state.getNextNonSpaceIndex(), line.length());
-            if (PATTERN.matcher(input).matches()) {
+            if (matchesThematicBreak(input)) {
                 return BlockStart.of(new ThematicBreakParser(line.subSequence(state.getIndex()))).atIndex(line.length());
             } else {
                 return BlockStart.none();
