@@ -136,9 +136,9 @@ final public class SpecialInputTest extends RenderingTestCase {
 
     @Test
     public void hugeDataUrlInLink() {
-        String url = "https://example.com/" + "A".repeat(5000);
-        String markdown = "[link]: <" + url + ">";
-        assertRendering(markdown, "<a href=\"" + url + "\">link</a>");
+        String url = "data:image/jpeg;base64," + "A".repeat(5000);
+        String markdown = "![alt text][image]\n\n[image]: <" + url + ">";
+        assertRendering(markdown, "<p><img src=\"" + url + "\" alt=\"alt text\" /></p>");
     }
 
     @Nullable

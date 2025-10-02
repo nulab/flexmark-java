@@ -4,6 +4,7 @@ import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.data.DataHolder;
 import com.vladsch.flexmark.util.format.TableFormatOptions;
 import com.vladsch.flexmark.util.misc.CharPredicate;
+import com.vladsch.flexmark.util.sequence.BasedSequence;
 import com.vladsch.flexmark.util.sequence.Escaping;
 import com.vladsch.flexmark.util.sequence.SequenceUtils;
 import org.jetbrains.annotations.NotNull;
@@ -506,5 +507,66 @@ public class Parsing {
 
     public static boolean isSpaceOrTab(CharSequence s, int index) {
         return CharPredicate.SPACE_TAB.test(SequenceUtils.safeCharAt(s, index));
+    }
+
+    /**
+     * Parse angled link destination without regex catastrophic backtracking.
+     * Replaces regex-based parsing to prevent StackOverflowError on large URLs.
+     *
+     * @param input the input sequence
+     * @param startIndex starting position
+     * @param spaceInLinkUrl whether spaces are allowed in URLs
+     * @return parsed result or null if no match
+     */
+    @Nullable
+    public static BasedSequence parseAngledLinkDestination(@NotNull BasedSequence input, int startIndex, boolean spaceInLinkUrl) {
+        if (startIndex >= input.length() || input.charAt(startIndex) != '<') {
+            return null;
+        }
+
+        int pos = startIndex + 1;
+
+        while (pos < input.length()) {
+            char c = input.charAt(pos);
+
+            // End of angled destination
+            if (c == '>') {
+                return input.subSequence(startIndex, pos + 1);
+            }
+
+            // Invalid characters
+            if (c == '<' || c == '\0' || c == '\t' || c == '\n' || c == '\r') {
+                return null;
+            }
+
+            // Space handling
+            if (c == ' ') {
+                if (!spaceInLinkUrl) {
+                    return null;
+                }
+                // Check lookahead for space followed by quote
+                if (pos + 1 < input.length()) {
+                    char next = input.charAt(pos + 1);
+                    if (next == '"' || next == '\'') {
+                        return null;
+                    }
+                }
+            }
+
+            // Escape sequence handling
+            if (c == '\\') {
+                pos++; // Skip the backslash
+                if (pos >= input.length()) {
+                    return null; // Incomplete escape at end
+                }
+                // The next character is consumed regardless of whether it's escapable
+                // This matches the original regex behavior
+            }
+
+            pos++;
+        }
+
+        // No closing '>' found
+        return null;
     }
 }
