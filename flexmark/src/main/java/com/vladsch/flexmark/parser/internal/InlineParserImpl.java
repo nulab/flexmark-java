@@ -3,6 +3,7 @@ package com.vladsch.flexmark.parser.internal;
 import com.vladsch.flexmark.ast.*;
 import com.vladsch.flexmark.ast.util.ReferenceRepository;
 import com.vladsch.flexmark.ast.util.TextNodeConverter;
+import com.vladsch.flexmark.ast.util.Parsing;
 import com.vladsch.flexmark.parser.*;
 import com.vladsch.flexmark.parser.block.CharacterNodeFactory;
 import com.vladsch.flexmark.parser.block.ParagraphPreProcessor;
@@ -1181,8 +1182,10 @@ public class InlineParserImpl extends LightInlineParserImpl implements InlinePar
      */
     @Override
     public BasedSequence parseLinkDestination() {
-        BasedSequence res = match(myParsing.LINK_DESTINATION_ANGLES);
+        // NOTE: Use linear parser to prevent StackOverflowError on large URLs
+        BasedSequence res = Parsing.parseAngledLinkDestination(input, index, options.spaceInLinkUrls);
         if (res != null) {
+            index += res.length();
             return res;
         } else {
             if (linkDestinationParser != null) {

@@ -4,6 +4,7 @@ import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.data.DataHolder;
 import com.vladsch.flexmark.util.format.TableFormatOptions;
 import com.vladsch.flexmark.util.misc.CharPredicate;
+import com.vladsch.flexmark.util.sequence.BasedSequence;
 import com.vladsch.flexmark.util.sequence.Escaping;
 import com.vladsch.flexmark.util.sequence.SequenceUtils;
 import org.jetbrains.annotations.NotNull;
@@ -23,7 +24,8 @@ public class Parsing {
 //    final public static String XML_NAMESPACE_CHAR = XML_NAME_SPACE_START + "|-|.|[0-9]";
     final public static String XML_NAMESPACE_START = "[_A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]"; // excluded  [#x10000-#xEFFFF]
     final public static String XML_NAMESPACE_CHAR = XML_NAMESPACE_START + "|[.0-9\u00B7\u0300-\u036F\u203F-\u2040-]";
-    final public static String XML_NAMESPACE = "(?:(?:" + XML_NAMESPACE_START + ")(?:" + XML_NAMESPACE_CHAR + ")*:)?";
+    // NOTE: Set name length limit to avoid stack overflow on pathological cases
+    final public static String XML_NAMESPACE = "(?:(?:" + XML_NAMESPACE_START + ")(?:" + XML_NAMESPACE_CHAR + "){0,200}:)?";
 
     // save options for others to use when only parsing instance is available
     final public DataHolder options;
@@ -506,5 +508,70 @@ public class Parsing {
 
     public static boolean isSpaceOrTab(CharSequence s, int index) {
         return CharPredicate.SPACE_TAB.test(SequenceUtils.safeCharAt(s, index));
+    }
+
+    private static final String ESCAPABLE_CHARS = "\"#$%&'()*+,./:;<=>?@[]\\^_`{|}~-";
+    /**
+     * Parse angled link destination without regex catastrophic backtracking.
+     * Replaces regex-based parsing to prevent StackOverflowError on large URLs.
+     *
+     * @param input the input sequence
+     * @param startIndex starting position
+     * @param spaceInLinkUrl whether spaces are allowed in URLs
+     * @return parsed result or null if no match
+     */
+    @Nullable
+    public static BasedSequence parseAngledLinkDestination(@NotNull BasedSequence input, int startIndex, boolean spaceInLinkUrl) {
+        if (startIndex >= input.length() || input.charAt(startIndex) != '<') {
+            return null;
+        }
+
+        int pos = startIndex + 1;
+
+        while (pos < input.length()) {
+            int nextPos = pos + 1;
+            char c = input.charAt(pos);
+
+            // End of angled destination
+            if (c == '>') {
+                return input.subSequence(startIndex, pos + 1);
+            }
+
+            // Invalid characters
+            if (c == '<' || c == '\0' || c == '\t' || c == '\n' || c == '\r') {
+                return null;
+            }
+
+            // Space handling
+            if (c == ' ') {
+                if (!spaceInLinkUrl) {
+                    return null;
+                }
+                // Check lookahead for space followed by quote
+                if (nextPos < input.length()) {
+                    char next = input.charAt(nextPos);
+                    if (next == '"' || next == '\'' || next == '(') {
+                        return null;
+                    }
+                }
+            }
+
+            // Escape sequence handling
+            if (c == '\\') {
+                if (nextPos >= input.length()) {
+                    return null; // Incomplete escape at end
+                }
+
+                char escapedChar = input.charAt(nextPos);
+                if (ESCAPABLE_CHARS.indexOf(escapedChar) > 0) {
+                    pos++; // Skip the escaped character
+                }
+            }
+
+            pos++;
+        }
+
+        // No closing '>' found
+        return null;
     }
 }

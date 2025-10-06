@@ -1,15 +1,20 @@
 package com.vladsch.flexmark.core.test.util.parser;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.junit.Test;
+
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
-import com.vladsch.flexmark.test.util.*;
+import com.vladsch.flexmark.test.util.FlexmarkSpecExampleRenderer;
+import com.vladsch.flexmark.test.util.RenderingTestCase;
+import com.vladsch.flexmark.test.util.SpecExampleRenderer;
+import com.vladsch.flexmark.test.util.Strings;
+import com.vladsch.flexmark.test.util.TestUtils;
 import com.vladsch.flexmark.test.util.spec.SpecExample;
 import com.vladsch.flexmark.util.data.DataHolder;
 import com.vladsch.flexmark.util.data.DataSet;
 import com.vladsch.flexmark.util.data.MutableDataSet;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.junit.Test;
 
 final public class SpecialInputTest extends RenderingTestCase {
     final private static DataHolder OPTIONS = new MutableDataSet()
@@ -121,7 +126,19 @@ final public class SpecialInputTest extends RenderingTestCase {
 
     @Test
     public void manyUnderscores() {
-        assertRendering(Strings.repeat("_", 1000), "<hr />");
+        assertRendering(Strings.repeat("_", 100000), "<hr />");
+    }
+
+    @Test
+    public void uncompletedHugeHtmlTag() {
+        assertRendering("<" + Strings.repeat("a", 1000000), "<p>&lt;" + Strings.repeat("a", 1000000) + "</p>\n");
+    }
+
+    @Test
+    public void hugeDataUrlInLink() {
+        String url = "data:image/jpeg;base64," + "A".repeat(5000);
+        String markdown = "![alt text][image]\n\n[image]: <" + url + ">";
+        assertRendering(markdown, "<p><img src=\"" + url + "\" alt=\"alt text\" /></p>");
     }
 
     @Nullable
