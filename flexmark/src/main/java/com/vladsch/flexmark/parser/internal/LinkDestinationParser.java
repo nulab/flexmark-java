@@ -100,12 +100,6 @@ public class LinkDestinationParser {
 
     public BasedSequence parseLinkDestination(BasedSequence input, int startIndex) {
         int iMax = input.length();
-
-        // Handle angled link destination to prevent StackOverflowError
-        if (startIndex < iMax && input.charAt(startIndex) == '<') {
-            return parseAngledLinkDestination(input, startIndex);
-        }
-
         int lastMatch = startIndex;
 
         int openParenCount = 0;
@@ -288,64 +282,5 @@ public class LinkDestinationParser {
             charSet.set(i);
         }
         return charSet;
-    }
-
-    /**
-     * Parse angled link destination without regex catastrophic backtracking.
-     * Replaces regex-based parsing to prevent StackOverflowError on large URLs.
-     *
-     * @param input the input sequence
-     * @param startIndex starting position
-     * @return parsed result or null if no match
-     */
-    private BasedSequence parseAngledLinkDestination(BasedSequence input, int startIndex) {
-        if (startIndex >= input.length() || input.charAt(startIndex) != '<') {
-            return null;
-        }
-
-        int pos = startIndex + 1;
-
-        while (pos < input.length()) {
-            char c = input.charAt(pos);
-
-            // End of angled destination
-            if (c == '>') {
-                return input.subSequence(startIndex, pos + 1);
-            }
-
-            // Invalid characters
-            if (c == '<' || c == '\0' || c == '\t' || c == '\n' || c == '\r') {
-                return null;
-            }
-
-            // Space handling
-            if (c == ' ') {
-                if (!spaceInUrls) {
-                    return null;
-                }
-                // Check lookahead for space followed by quote
-                if (pos + 1 < input.length()) {
-                    char next = input.charAt(pos + 1);
-                    if (next == '"' || next == '\'') {
-                        return null;
-                    }
-                }
-            }
-
-            // Escape sequence handling
-            if (c == '\\') {
-                pos++; // Skip the backslash
-                if (pos >= input.length()) {
-                    return null; // Incomplete escape at end
-                }
-                // The next character is consumed regardless of whether it's escapable
-                // This matches the original regex behavior
-            }
-
-            pos++;
-        }
-
-        // No closing '>' found
-        return null;
     }
 }

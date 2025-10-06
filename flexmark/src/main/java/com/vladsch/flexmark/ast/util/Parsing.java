@@ -510,6 +510,7 @@ public class Parsing {
         return CharPredicate.SPACE_TAB.test(SequenceUtils.safeCharAt(s, index));
     }
 
+    private static final String ESCAPABLE_CHARS = "\"#$%&'()*+,./:;<=>?@[]\\^_`{|}~-";
     /**
      * Parse angled link destination without regex catastrophic backtracking.
      * Replaces regex-based parsing to prevent StackOverflowError on large URLs.
@@ -528,6 +529,7 @@ public class Parsing {
         int pos = startIndex + 1;
 
         while (pos < input.length()) {
+            int nextPos = pos + 1;
             char c = input.charAt(pos);
 
             // End of angled destination
@@ -546,9 +548,9 @@ public class Parsing {
                     return null;
                 }
                 // Check lookahead for space followed by quote
-                if (pos + 1 < input.length()) {
-                    char next = input.charAt(pos + 1);
-                    if (next == '"' || next == '\'') {
+                if (nextPos < input.length()) {
+                    char next = input.charAt(nextPos);
+                    if (next == '"' || next == '\'' || next == '(') {
                         return null;
                     }
                 }
@@ -556,12 +558,14 @@ public class Parsing {
 
             // Escape sequence handling
             if (c == '\\') {
-                pos++; // Skip the backslash
-                if (pos >= input.length()) {
+                if (nextPos >= input.length()) {
                     return null; // Incomplete escape at end
                 }
-                // The next character is consumed regardless of whether it's escapable
-                // This matches the original regex behavior
+
+                char escapedChar = input.charAt(nextPos);
+                if (ESCAPABLE_CHARS.indexOf(escapedChar) > 0) {
+                    pos++; // Skip the escaped character
+                }
             }
 
             pos++;
