@@ -1,6 +1,10 @@
 ![Flexmark Icon Logo](assets/images/flexmark-icon-logo.png) flexmark-java
 =========================================================================
 
+:warning: **Branch Strategy**: This is a fork of the upstream flexmark-java project. Please read [BRANCH.md](BRANCH.md) for our branch management strategy and contribution workflow.
+
+---
+
 **flexmark-java** is a Java implementation of **[CommonMark (spec 0.28)]** parser using the
 blocks first, inlines after Markdown parsing architecture.
 
