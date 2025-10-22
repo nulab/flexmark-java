@@ -1,0 +1,38 @@
+name: Deploy to AWS Maven Repository
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'nulab-*'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@main
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy flexmark-all to AWS Maven Repository
+        env:
+          MAVEN_REPOSITORY_ID: ${{ secrets.MAVEN_REPOSITORY_ID }}
+          MAVEN_REPOSITORY_URL: ${{ secrets.MAVEN_REPOSITORY_URL }}
+        run: |
+          mvn deploy -pl flexmark-all -am -DskipTests=true
