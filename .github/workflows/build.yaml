@@ -38,13 +38,13 @@ jobs:
             --fail-at-end
 
       - name: Report test results
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         if: always()
         with:
           name: Maven Tests
-          path: "**/target/surefire-reports/*.xml"
+          path: '**/target/surefire-reports/*.xml'
           reporter: java-junit
-          fail-on-error: "false"
+          fail-on-error: 'false'
 
       - name: Build project
         run: |
