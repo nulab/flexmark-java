@@ -2,13 +2,15 @@ name: Deploy to AWS Maven Repository
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - 'CASHEW_NUTS-748/deploy-github-actions'
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., 0.64.9, will be prefixed with nu-)'
+        required: true
+        type: string
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 jobs:
   deploy:
@@ -17,22 +19,39 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # - name: Set up JDK
-      #   uses: actions/setup-java@v4
-      #   with:
-      #     java-version: '21'
-      #     distribution: 'temurin'
-      #     cache: 'maven'
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
 
-      # - name: Configure AWS Credentials
-      #   uses: aws-actions/configure-aws-credentials@main
-      #   with:
-      #     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-      #     aws-region: ${{ secrets.AWS_REGION }}
+      - name: Update version in pom.xml
+        run: |
+          mvn versions:set -DnewVersion=nu-${{ inputs.version }} -DgenerateBackupPoms=false
 
-      # - name: Deploy flexmark-all to AWS Maven Repository
-      #   env:
-      #     MAVEN_REPOSITORY_ID: ${{ secrets.MAVEN_REPOSITORY_ID }}
-      #     MAVEN_REPOSITORY_URL: ${{ secrets.MAVEN_REPOSITORY_URL }}
-      #   run: |
-      #     mvn deploy -pl flexmark-all -am -DskipTests=true
+      - name: Commit and push version changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: bump version to nu-${{ inputs.version }}"
+          git push
+
+      - name: Create and push tag
+        run: |
+          git tag -a "v${{ inputs.version }}" -m "Release version nu-${{ inputs.version }}"
+          git push origin "v${{ inputs.version }}"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@main
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy flexmark-all to AWS Maven Repository
+        env:
+          MAVEN_REPOSITORY_ID: ${{ secrets.MAVEN_REPOSITORY_ID }}
+          MAVEN_REPOSITORY_URL: ${{ secrets.MAVEN_REPOSITORY_URL }}
+        run: |
+          mvn deploy -pl flexmark-all -am -DskipTests=true
