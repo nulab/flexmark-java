@@ -92,17 +92,21 @@
     </properties>
 
     <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
         <repository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+            <id>${env.MAVEN_REPOSITORY_ID}</id>
+            <name>AWS Repository</name>
+            <url>${env.MAVEN_REPOSITORY_URL}</url>
         </repository>
     </distributionManagement>
 
     <build>
+        <extensions>
+            <extension>
+                <groupId>io.github.embriq-nordic</groupId>
+                <artifactId>aws-oidc-s3-maven-wagon</artifactId>
+                <version>1.2.0</version>
+            </extension>
+        </extensions>
         <pluginManagement>
             <plugins>
                 <plugin>

@@ -1,0 +1,59 @@
+name: Deploy to AWS Maven Repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., 0.64.9, will be prefixed with nu-)'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERSION_TAG: nu-${{ inputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Update version in pom.xml
+        run: |
+          mvn versions:set -DnewVersion=${{ env.VERSION_TAG }} -DgenerateBackupPoms=false
+
+      - name: Commit and push version changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: bump version to ${{ env.VERSION_TAG }}"
+          git push
+
+      - name: Create and push tag
+        run: |
+          git tag -a "${{ env.VERSION_TAG }}" -m "Release version ${{ env.VERSION_TAG }}"
+          git push origin "${{ env.VERSION_TAG }}"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@main
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy flexmark-all to AWS Maven Repository
+        env:
+          MAVEN_REPOSITORY_ID: ${{ secrets.MAVEN_REPOSITORY_ID }}
+          MAVEN_REPOSITORY_URL: ${{ secrets.MAVEN_REPOSITORY_URL }}
+        run: |
+          mvn deploy -pl flexmark-all -am -DskipTests=true
