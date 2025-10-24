@@ -15,6 +15,8 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      VERSION_TAG: nu-${{ inputs.version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -28,20 +30,20 @@ jobs:
 
       - name: Update version in pom.xml
         run: |
-          mvn versions:set -DnewVersion=nu-${{ inputs.version }} -DgenerateBackupPoms=false
+          mvn versions:set -DnewVersion=${{ env.VERSION_TAG }} -DgenerateBackupPoms=false
 
       - name: Commit and push version changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "chore: bump version to nu-${{ inputs.version }}"
+          git commit -m "chore: bump version to ${{ env.VERSION_TAG }}"
           git push
 
       - name: Create and push tag
         run: |
-          git tag -a "v${{ inputs.version }}" -m "Release version nu-${{ inputs.version }}"
-          git push origin "v${{ inputs.version }}"
+          git tag -a "${{ env.VERSION_TAG }}" -m "Release version ${{ env.VERSION_TAG }}"
+          git push origin "${{ env.VERSION_TAG }}"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@main
