@@ -1,0 +1,210 @@
+name: Sync upstream/master with Upstream Repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not push or create PR)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  sync-upstream:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: upstream/master
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          # Check if upstream remote exists
+          if git remote | grep -q '^upstream$'; then
+            echo "Upstream remote already exists"
+            git remote set-url upstream https://github.com/vsch/flexmark-java.git
+          else
+            echo "Adding upstream remote"
+            git remote add upstream https://github.com/vsch/flexmark-java.git
+          fi
+
+          # Verify remotes
+          echo "Current remotes:"
+          git remote -v
+
+      - name: Fetch upstream
+        run: |
+          echo "Fetching from upstream repository..."
+          git fetch upstream master
+          git fetch origin master
+
+          echo "Current upstream/master HEAD:"
+          git log --oneline -1
+
+          echo "Upstream repository master HEAD:"
+          git log --oneline -1 upstream/master
+
+      - name: Check for updates
+        id: check_updates
+        run: |
+          LOCAL_COMMIT=$(git rev-parse HEAD)
+          UPSTREAM_COMMIT=$(git rev-parse upstream/master)
+
+          echo "local_commit=${LOCAL_COMMIT}" >> $GITHUB_OUTPUT
+          echo "upstream_commit=${UPSTREAM_COMMIT}" >> $GITHUB_OUTPUT
+
+          if [ "${LOCAL_COMMIT}" = "${UPSTREAM_COMMIT}" ]; then
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "✅ upstream/master is already up-to-date with upstream"
+          else
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            echo "📦 Updates available from upstream"
+            echo ""
+            echo "Commits to be pulled:"
+            git log --oneline ${LOCAL_COMMIT}..${UPSTREAM_COMMIT}
+          fi
+
+      - name: Pull from upstream
+        if: steps.check_updates.outputs.has_updates == 'true'
+        run: |
+          echo "Pulling changes from upstream/master..."
+          git pull upstream master --ff-only
+
+          echo ""
+          echo "✅ Successfully pulled from upstream"
+          echo ""
+          echo "Recent commits:"
+          git log --oneline -5
+
+      - name: Push to origin (upstream/master)
+        if: steps.check_updates.outputs.has_updates == 'true' && inputs.dry_run == false
+        run: |
+          echo "Pushing updated upstream/master to origin..."
+          git push origin upstream/master
+
+          echo ""
+          echo "✅ Successfully pushed to origin/upstream/master"
+
+      - name: Create sync branch and PR
+        if: steps.check_updates.outputs.has_updates == 'true' && inputs.dry_run == false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Generate branch name with current date
+          SYNC_BRANCH="sync/upstream-$(date +%Y%m%d-%H%M%S)"
+          echo "Creating sync branch: ${SYNC_BRANCH}"
+
+          # Create and checkout sync branch from updated upstream/master
+          git checkout -b "${SYNC_BRANCH}"
+
+          # Push sync branch
+          git push -u origin "${SYNC_BRANCH}"
+
+          # Generate PR body with commit details
+          LOCAL_COMMIT="${{ steps.check_updates.outputs.local_commit }}"
+          UPSTREAM_COMMIT="${{ steps.check_updates.outputs.upstream_commit }}"
+
+          # Get commit list
+          COMMITS=$(git log --oneline ${LOCAL_COMMIT}..${UPSTREAM_COMMIT})
+          COMMIT_COUNT=$(echo "${COMMITS}" | wc -l | tr -d ' ')
+
+          # Get detailed commit info
+          COMMIT_DETAILS=$(git log --format="- %h %s (%an, %ar)" ${LOCAL_COMMIT}..${UPSTREAM_COMMIT})
+
+          # Create PR body
+          cat > /tmp/pr_body.md << 'EOF'
+          ## 📦 Upstream Synchronization
+
+          This PR synchronizes changes from the upstream repository (vsch/flexmark-java) to our master branch.
+
+          ### Summary
+
+          - **Commits synced**: COMMIT_COUNT_PLACEHOLDER
+          - **Previous commit**: `LOCAL_COMMIT_PLACEHOLDER`
+          - **New commit**: `UPSTREAM_COMMIT_PLACEHOLDER`
+
+          ### Commits Included
+
+          COMMIT_DETAILS_PLACEHOLDER
+
+          ### Verification Checklist
+
+          - [ ] Review the upstream changes
+          - [ ] Run tests to ensure compatibility
+          - [ ] Check for conflicts with internal changes
+          - [ ] Verify CI/CD pipeline passes
+
+          ### Related Documentation
+
+          See [BRANCH.md](../BRANCH.md) for the branch strategy.
+
+          ---
+
+          🤖 *This PR was automatically created by the [Sync Upstream workflow](../.github/workflows/sync-upstream.yml)*
+          EOF
+
+          # Replace placeholders
+          sed -i "s/COMMIT_COUNT_PLACEHOLDER/${COMMIT_COUNT}/" /tmp/pr_body.md
+          sed -i "s/LOCAL_COMMIT_PLACEHOLDER/${LOCAL_COMMIT}/" /tmp/pr_body.md
+          sed -i "s/UPSTREAM_COMMIT_PLACEHOLDER/${UPSTREAM_COMMIT}/" /tmp/pr_body.md
+          sed -i "s|COMMIT_DETAILS_PLACEHOLDER|${COMMIT_DETAILS}|" /tmp/pr_body.md
+
+          # Create PR
+          gh pr create \
+            --base master \
+            --head "${SYNC_BRANCH}" \
+            --title "🔄 Sync upstream changes ($(date +%Y-%m-%d))" \
+            --body-file /tmp/pr_body.md
+
+          echo ""
+          echo "✅ Pull request created successfully"
+          echo "Branch: ${SYNC_BRANCH} → master"
+
+      - name: Dry run summary
+        if: inputs.dry_run == true && steps.check_updates.outputs.has_updates == 'true'
+        run: |
+          echo "🔍 DRY RUN MODE - No changes pushed, no PR created"
+          echo ""
+          echo "Would have pushed the following changes:"
+          git log --oneline -5
+          echo ""
+          echo "Would have created PR: sync/upstream-YYYYMMDD → master"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.check_updates.outputs.has_updates }}" = "true" ]; then
+            echo "### 📦 Updates Found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- Local commit: \`${{ steps.check_updates.outputs.local_commit }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Upstream commit: \`${{ steps.check_updates.outputs.upstream_commit }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              echo "🔍 **Dry run mode** - No changes were pushed, no PR was created" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ **Changes synced and PR created successfully**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Check the [Pull Requests](../../pulls) tab to review and merge the changes." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "### ✅ Already Up-to-Date" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No updates available from upstream" >> $GITHUB_STEP_SUMMARY
+          fi
