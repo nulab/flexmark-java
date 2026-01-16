@@ -56,7 +56,7 @@ public class Parsing {
     final private static String ST_ADDITIONAL_CHARS_SET_IDI = "[\u001f]";
     final private static String ST_ADDITIONAL_CHARS_SET_NO_IDI = "";
 
-    final public static String ST_HTMLCOMMENT = "<!---->|<!--(?:-?[^>-])(?:-?[^-])*-->";
+    final public static String ST_HTMLCOMMENT = "<!---->|<!--(?:-?[^>-])(?:-?[^-])*+-->";
     final public static String ST_PROCESSINGINSTRUCTION = "[<][?].*?[?][>]";
     final public static String ST_CDATA = "<!\\[CDATA\\[[\\s\\S]*?\\]\\]>";
     final public static String ST_SINGLEQUOTEDVALUE = "'[^']*'";
@@ -127,31 +127,31 @@ public class Parsing {
     final public Pattern LINE_END = ST_LINE_END;
 
     // IntelliJDummyIdentifier dependent
-    final private static String ST_TAGNAME_IDI = "[A-Za-z" + ST_ADDITIONAL_CHARS_IDI + "][A-Za-z0-9" + ST_ADDITIONAL_CHARS_IDI + "-]*";
-    final private static String ST_TAGNAME_NO_IDI = "[A-Za-z" + ST_ADDITIONAL_CHARS_NO_IDI + "][A-Za-z0-9" + ST_ADDITIONAL_CHARS_NO_IDI + "-]*";
+    final private static String ST_TAGNAME_IDI = "[A-Za-z" + ST_ADDITIONAL_CHARS_IDI + "][A-Za-z0-9" + ST_ADDITIONAL_CHARS_IDI + "-]*+";
+    final private static String ST_TAGNAME_NO_IDI = "[A-Za-z" + ST_ADDITIONAL_CHARS_NO_IDI + "][A-Za-z0-9" + ST_ADDITIONAL_CHARS_NO_IDI + "-]*+";
 
-    final private static String ST_UNQUOTEDVALUE_IDI = "[^\"'=<>{}`" + ST_EXCLUDED_0_TO_SPACE_IDI + "]+";
-    final private static String ST_UNQUOTEDVALUE_NO_IDI = "[^\"'=<>{}`" + ST_EXCLUDED_0_TO_SPACE_NO_IDI + "]+";
+    final private static String ST_UNQUOTEDVALUE_IDI = "[^\"'=<>{}`" + ST_EXCLUDED_0_TO_SPACE_IDI + "]++";
+    final private static String ST_UNQUOTEDVALUE_NO_IDI = "[^\"'=<>{}`" + ST_EXCLUDED_0_TO_SPACE_NO_IDI + "]++";
 
-    final private static String ST_ATTRIBUTENAME_IDI = "[a-zA-Z" + ST_ADDITIONAL_CHARS_IDI + "_:][a-zA-Z0-9" + ST_ADDITIONAL_CHARS_IDI + ":._-]*";
-    final private static String ST_ATTRIBUTENAME_NO_IDI = "[a-zA-Z" + ST_ADDITIONAL_CHARS_NO_IDI + "_:][a-zA-Z0-9" + ST_ADDITIONAL_CHARS_NO_IDI + ":._-]*";
+    final private static String ST_ATTRIBUTENAME_IDI = "[a-zA-Z" + ST_ADDITIONAL_CHARS_IDI + "_:][a-zA-Z0-9" + ST_ADDITIONAL_CHARS_IDI + ":._-]*+";
+    final private static String ST_ATTRIBUTENAME_NO_IDI = "[a-zA-Z" + ST_ADDITIONAL_CHARS_NO_IDI + "_:][a-zA-Z0-9" + ST_ADDITIONAL_CHARS_NO_IDI + ":._-]*+";
 
     final private static String ST_ATTRIBUTEVALUE_IDI = "(?:" + ST_UNQUOTEDVALUE_IDI + "|" + ST_SINGLEQUOTEDVALUE + "|" + ST_DOUBLEQUOTEDVALUE + ")";
     final private static String ST_ATTRIBUTEVALUE_NO_IDI = "(?:" + ST_UNQUOTEDVALUE_NO_IDI + "|" + ST_SINGLEQUOTEDVALUE + "|" + ST_DOUBLEQUOTEDVALUE + ")";
 
-    final private static String ST_ATTRIBUTEVALUESPEC_IDI = "(?:" + "\\s*=" + "\\s*" + ST_ATTRIBUTEVALUE_IDI + ")";
-    final private static String ST_ATTRIBUTEVALUESPEC_NO_IDI = "(?:" + "\\s*=" + "\\s*" + ST_ATTRIBUTEVALUE_NO_IDI + ")";
+    final private static String ST_ATTRIBUTEVALUESPEC_IDI = "(?:" + "\\s*+=" + "\\s*+" + ST_ATTRIBUTEVALUE_IDI + ")";
+    final private static String ST_ATTRIBUTEVALUESPEC_NO_IDI = "(?:" + "\\s*+=" + "\\s*+" + ST_ATTRIBUTEVALUE_NO_IDI + ")";
 
-    final private static String ST_CLOSETAG_IDI = "</" + ST_TAGNAME_IDI + "\\s*[>]";
-    final private static String ST_CLOSETAG_NO_IDI = "</" + ST_TAGNAME_NO_IDI + "\\s*[>]";
-    final private static String ST_NS_CLOSETAG_IDI = "</" + XML_NAMESPACE + ST_TAGNAME_IDI + "\\s*[>]";
-    final private static String ST_NS_CLOSETAG_NO_IDI = "</" + XML_NAMESPACE + ST_TAGNAME_NO_IDI + "\\s*[>]";
+    final private static String ST_CLOSETAG_IDI = "</" + ST_TAGNAME_IDI + "\\s*+[>]";
+    final private static String ST_CLOSETAG_NO_IDI = "</" + ST_TAGNAME_NO_IDI + "\\s*+[>]";
+    final private static String ST_NS_CLOSETAG_IDI = "</" + XML_NAMESPACE + ST_TAGNAME_IDI + "\\s*+[>]";
+    final private static String ST_NS_CLOSETAG_NO_IDI = "</" + XML_NAMESPACE + ST_TAGNAME_NO_IDI + "\\s*+[>]";
 
     final private static String ST_ATTRIBUTE_IDI = "(?:" + "\\s+" + ST_ATTRIBUTENAME_IDI + ST_ATTRIBUTEVALUESPEC_IDI + "?)";
     final private static String ST_ATTRIBUTE_NO_IDI = "(?:" + "\\s+" + ST_ATTRIBUTENAME_NO_IDI + ST_ATTRIBUTEVALUESPEC_NO_IDI + "?)";
 
-    final private static String ST_DECLARATION_IDI = "<![A-Z" + ST_ADDITIONAL_CHARS_IDI + "]+\\s+[^>]*>";
-    final private static String ST_DECLARATION_NO_IDI = "<![A-Z" + ST_ADDITIONAL_CHARS_NO_IDI + "]+\\s+[^>]*>";
+    final private static String ST_DECLARATION_IDI = "<![A-Z" + ST_ADDITIONAL_CHARS_IDI + "]+\\s+[^>]*+>";
+    final private static String ST_DECLARATION_NO_IDI = "<![A-Z" + ST_ADDITIONAL_CHARS_NO_IDI + "]+\\s+[^>]*+>";
 
     final private static String ST_ENTITY_IDI = "&(?:#x[a-f0-9" + ST_ADDITIONAL_CHARS_IDI + "]{1,8}|#[0-9]{1,8}|[a-z" + ST_ADDITIONAL_CHARS_IDI + "][a-z0-9" + ST_ADDITIONAL_CHARS_IDI + "]{1,31});";
     final private static String ST_ENTITY_NO_IDI = "&(?:#x[a-f0-9" + ST_ADDITIONAL_CHARS_NO_IDI + "]{1,8}|#[0-9]{1,8}|[a-z" + ST_ADDITIONAL_CHARS_NO_IDI + "][a-z0-9" + ST_ADDITIONAL_CHARS_NO_IDI + "]{1,31});";
@@ -177,10 +177,10 @@ public class Parsing {
     final private static String ST_IN_PARENS_W_SP_IDI = "\\((" + ST_REG_CHAR_SP_IDI + '|' + ST_ESCAPED_CHAR + ")*\\)";
     final private static String ST_IN_PARENS_W_SP_NO_IDI = "\\((" + ST_REG_CHAR_SP_NO_IDI + '|' + ST_ESCAPED_CHAR + ")*\\)";
 
-    final private static String ST_OPENTAG_IDI = "<" + ST_TAGNAME_IDI + ST_ATTRIBUTE_IDI + "*" + "\\s*/?>";
-    final private static String ST_OPENTAG_NO_IDI = "<" + ST_TAGNAME_NO_IDI + ST_ATTRIBUTE_NO_IDI + "*" + "\\s*/?>";
-    final private static String ST_NS_OPENTAG_IDI = "<" + XML_NAMESPACE + ST_TAGNAME_IDI + ST_ATTRIBUTE_IDI + "*" + "\\s*/?>";
-    final private static String ST_NS_OPENTAG_NO_IDI = "<" + XML_NAMESPACE + ST_TAGNAME_NO_IDI + ST_ATTRIBUTE_NO_IDI + "*" + "\\s*/?>";
+    final private static String ST_OPENTAG_IDI = "<" + ST_TAGNAME_IDI + ST_ATTRIBUTE_IDI + "*+" + "\\s*+/?>";
+    final private static String ST_OPENTAG_NO_IDI = "<" + ST_TAGNAME_NO_IDI + ST_ATTRIBUTE_NO_IDI + "*+" + "\\s*+/?>";
+    final private static String ST_NS_OPENTAG_IDI = "<" + XML_NAMESPACE + ST_TAGNAME_IDI + ST_ATTRIBUTE_IDI + "*+" + "\\s*+/?>";
+    final private static String ST_NS_OPENTAG_NO_IDI = "<" + XML_NAMESPACE + ST_TAGNAME_NO_IDI + ST_ATTRIBUTE_NO_IDI + "*+" + "\\s*+/?>";
 
     final private static String ST_REG_CHAR_PARENS_IDI = "[^\\\\" + ST_EXCLUDED_0_TO_SPACE_IDI + "]";
     final private static String ST_REG_CHAR_PARENS_NO_IDI = "[^\\\\" + ST_EXCLUDED_0_TO_SPACE_NO_IDI + "]";

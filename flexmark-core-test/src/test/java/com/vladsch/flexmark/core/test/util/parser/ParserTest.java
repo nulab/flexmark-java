@@ -636,6 +636,25 @@ final public class ParserTest {
         assertEquals("2\\)abc", unEscape("2\\)abc", parser));
     }
 
+    @Test
+    public void stackOverflowReproductionTest() {
+        // Test to reproduce potential StackOverflowError with deeply nested blockquotes
+        // Content: "> 0<!-- ...\n" + (("> " + "あ".repeat(150) + "\n") * 100)
+
+        StringBuilder contentBuilder = new StringBuilder("> 0<!-- ...\n");
+        String repeatedLine = "> " + "あ".repeat(150) + "\n";
+        for (int i = 0; i < 100; i++) {
+            contentBuilder.append(repeatedLine);
+        }
+        String content = contentBuilder.toString();
+
+        Parser parser = Parser.builder().build();
+        Document document = parser.parse(content);
+
+        // Verify that parsing completed without StackOverflowError
+        assertNotNull(document);
+    }
+
     private String firstText(Node n) {
         while (!(n instanceof Text)) {
             assertThat(n, notNullValue());
