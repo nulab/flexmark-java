@@ -43,11 +43,67 @@ public class Parsing {
     final public String ESCAPED_CHAR = ST_ESCAPED_CHAR;
     final public Pattern LINK_LABEL = ST_LINK_LABEL;
     final public Pattern LINK_DESTINATION_ANGLES;
+
+    /**
+     * @deprecated Vulnerable to ReDoS. Use {@link #parseLinkTitle(BasedSequence, int)} instead.
+     * Will be removed in a future release.
+     */
+    @Deprecated
     final public String LINK_TITLE_STRING = ST_LINK_TITLE_STRING;
+
+    /**
+     * @deprecated Vulnerable to ReDoS. Use {@link #parseLinkTitle(BasedSequence, int)} instead.
+     * Will be removed in a future release.
+     */
+    @Deprecated
     final public Pattern LINK_TITLE = ST_LINK_TITLE;
     final public Pattern LINK_DESTINATION;
     final public Pattern LINK_DESTINATION_MATCHED_PARENS;
     final public Pattern LINK_DESTINATION_MATCHED_PARENS_NOSP;
+
+    @Nullable
+    public static BasedSequence parseLinkTitle(@NotNull BasedSequence input, int startIndex) {
+        if (startIndex < 0 || startIndex >= input.length()) return null;
+
+        char opening = input.charAt(startIndex);
+        char closing;
+        switch (opening) {
+            case '"':
+            case '\'':
+                closing = opening;
+                break;
+            case '(':
+                closing = ')';
+                break;
+            default:
+                return null;
+        }
+
+        int iMax = input.length();
+        for (int i = startIndex + 1; i < iMax; i++) {
+            char c = input.charAt(i);
+            if (c == '\0') return null;
+
+            if (c == closing) {
+                return input.subSequence(startIndex, i + 1);
+            }
+
+            if (c == '\\' && i + 1 < iMax && Escaping.ESCAPABLE_CHARS.indexOf(input.charAt(i + 1)) != -1) {
+                i++;
+            }
+        }
+
+        return null;
+    }
+
+    public static int skipWhitespace(@NotNull BasedSequence input, int startIndex) {
+        int iMax = input.length();
+        int i = Math.max(0, startIndex);
+        while (i < iMax && Character.isWhitespace(input.charAt(i))) {
+            i++;
+        }
+        return i;
+    }
 
     final private static String ST_EXCLUDED_0_TO_SPACE_IDI = "\u0000-\u001e\u0020";
     final private static String ST_EXCLUDED_0_TO_SPACE_NO_IDI = "\u0000-\u0020";

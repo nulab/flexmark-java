@@ -1241,7 +1241,10 @@ public class InlineParserImpl extends LightInlineParserImpl implements InlinePar
      */
     @Override
     public BasedSequence parseLinkTitle() {
-        BasedSequence title = match(myParsing.LINK_TITLE);
+        BasedSequence title = Parsing.parseLinkTitle(input, index);
+        if (title != null) {
+            index += title.length();
+        }
         // chop off quotes from title and unescape:
         return title; //Escaping.unescapeString(title.substring(1, title.length() - 1));
     }

@@ -1,6 +1,8 @@
 package com.vladsch.flexmark.ext.admonition;
 
+import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
+import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.sequence.BasedSequence;
 import com.vladsch.flexmark.util.sequence.mappers.SpecialLeadInHandler;
 import org.junit.Test;
@@ -66,5 +68,28 @@ final public class AdmonitionParserTest {
         assertEquals("!!!+", unEscape("\\!!!+", parser));
         assertEquals("???", unEscape("\\???", parser));
         assertEquals("???+", unEscape("\\???+", parser));
+    }
+
+    @Test
+    public void unterminatedJsonLikeTitleDoesNotStackOverflow() {
+        String jsonish = ("\\\"recovery_seconds\\\":18353,\\\"start_date\\\":\\\"2026-03-28 23:36:11\\\",\\\"active\\\":1,").repeat(80);
+        String markdown = "??? note \"" + jsonish + "\nbody\n";
+
+        Parser parser = Parser.builder().extensions(Collections.singleton(AdmonitionExtension.create())).build();
+        assertEquals(markdown, parser.parse(markdown).getChars().toString());
+    }
+
+    @Test
+    public void validQuotedTitleStillRenders() {
+        Parser parser = Parser.builder().extensions(Collections.singleton(AdmonitionExtension.create())).build();
+        HtmlRenderer renderer = HtmlRenderer.builder().extensions(Collections.singleton(AdmonitionExtension.create())).build();
+
+        String markdown = "??? note \"title\\\"s\"\nbody\n";
+        Node document = parser.parse(markdown);
+        String html = renderer.render(document);
+
+        assertEquals(markdown, document.getChars().toString());
+        assertEquals(true, html.contains("body"));
+        assertEquals(true, html.contains("title"));
     }
 }
