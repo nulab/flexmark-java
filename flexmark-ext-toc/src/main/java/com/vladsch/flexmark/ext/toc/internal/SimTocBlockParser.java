@@ -29,15 +29,15 @@ import static com.vladsch.flexmark.parser.block.BlockStart.none;
 
 public class SimTocBlockParser extends AbstractBlockParser {
     static class TocParsing extends Parsing {
-        final Pattern TOC_BLOCK_START;
+        final Pattern TOC_BLOCK_START_PREFIX;
         //private static Pattern TOC_BLOCK_CONTINUE = Pattern.compile("^.+$");
 
         public TocParsing(DataHolder options) {
             super(options);
             if (CASE_SENSITIVE_TOC_TAG.get(options)) {
-                this.TOC_BLOCK_START = Pattern.compile("^\\[TOC(?:\\s+([^\\]]+))?]:\\s*#(?:\\s+(" + super.LINK_TITLE_STRING + "))?\\s*$");
+                this.TOC_BLOCK_START_PREFIX = Pattern.compile("^\\[TOC(?:\\s+([^\\]]+))?]:\\s*#");
             } else {
-                this.TOC_BLOCK_START = Pattern.compile("^\\[(?i:TOC)(?:\\s+([^\\]]+))?]:\\s*#(?:\\s+(" + super.LINK_TITLE_STRING + "))?\\s*$");
+                this.TOC_BLOCK_START_PREFIX = Pattern.compile("^\\[(?i:TOC)(?:\\s+([^\\]]+))?]:\\s*#");
             }
         }
     }
@@ -192,17 +192,30 @@ public class SimTocBlockParser extends AbstractBlockParser {
             BasedSequence line = state.getLine();
             int nextNonSpace = state.getNextNonSpaceIndex();
             BasedSequence trySequence = line.subSequence(nextNonSpace, line.length());
-            Matcher matcher = myParsing.TOC_BLOCK_START.matcher(line);
-            if (matcher.matches()) {
+            Matcher matcher = myParsing.TOC_BLOCK_START_PREFIX.matcher(line);
+            if (matcher.find() && matcher.start() == 0) {
                 BasedSequence tocChars = state.getLineWithEOL();
                 BasedSequence styleChars = null;
                 BasedSequence titleChars = null;
                 if (matcher.start(1) != -1) {
-                    styleChars = trySequence.subSequence(matcher.start(1), matcher.end(1));
+                    styleChars = trySequence.subSequence(matcher.start(1) - nextNonSpace, matcher.end(1) - nextNonSpace);
                 }
 
-                if (matcher.start(2) != -1) {
-                    titleChars = trySequence.subSequence(matcher.start(2), matcher.end(2));
+                int afterHash = matcher.end();
+                int titleStart = Parsing.skipWhitespace(line, afterHash);
+                if (titleStart < line.length()) {
+                    if (titleStart == afterHash) {
+                        // no whitespace between # and title — reject to preserve original behaviour
+                        return none();
+                    }
+                    titleChars = Parsing.parseLinkTitle(line, titleStart);
+                    if (titleChars == null || !line.subSequence(titleStart + titleChars.length(), line.length()).trim().isEmpty()) {
+                        return none();
+                    }
+                    // adjust titleChars to be relative to trySequence for downstream consistency
+                    titleChars = trySequence.subSequence(titleStart - nextNonSpace, titleStart - nextNonSpace + titleChars.length());
+                } else if (!line.subSequence(afterHash, line.length()).trim().isEmpty()) {
+                    return none();
                 }
 
                 SimTocBlockParser simTocBlockParser = new SimTocBlockParser(state.getProperties(), tocChars, styleChars, titleChars);

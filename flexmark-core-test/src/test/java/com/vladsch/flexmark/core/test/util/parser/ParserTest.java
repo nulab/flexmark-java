@@ -1,6 +1,7 @@
 package com.vladsch.flexmark.core.test.util.parser;
 
 import com.vladsch.flexmark.ast.*;
+import com.vladsch.flexmark.ast.util.Parsing;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.parser.block.*;
@@ -653,6 +654,22 @@ final public class ParserTest {
 
         // Verify that parsing completed without StackOverflowError
         assertNotNull(document);
+    }
+
+    @Test
+    public void unterminatedJsonLikeLinkTitleDoesNotStackOverflow() {
+        String jsonish = ("\\\"recovery_seconds\\\":18353,\\\"start_date\\\":\\\"2026-03-28 23:36:11\\\",\\\"active\\\":1,").repeat(80);
+        BasedSequence title = Parsing.parseLinkTitle(BasedSequence.of("\"" + jsonish), 0);
+        assertNull(title);
+    }
+
+    @Test
+    public void validEscapedLinkTitleStillRenders() {
+        Parser parser = Parser.builder().build();
+        HtmlRenderer renderer = HtmlRenderer.builder().build();
+
+        String markdown = "[link]: / \"title\\\"s\"\n\n[link]";
+        assertEquals("<p><a href=\"/\" title=\"title&quot;s\">link</a></p>\n", renderer.render(parser.parse(markdown)));
     }
 
     private String firstText(Node n) {

@@ -17,7 +17,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class AdmonitionBlockParser extends AbstractBlockParser {
-    final private static String ADMONITION_START_FORMAT = "^(\\?{3}\\+|\\?{3}|!{3})\\s+(%s)(?:\\s+(%s))?\\s*$";
+    final private static String ADMONITION_START_PREFIX_FORMAT = "^(\\?{3}\\+|\\?{3}|!{3})\\s+(%s)";
 
     final AdmonitionBlock block;
     //private BlockContent content = new BlockContent();
@@ -171,14 +171,21 @@ public class AdmonitionBlockParser extends AbstractBlockParser {
                 BasedSequence line = state.getLine();
                 BasedSequence trySequence = line.subSequence(nextNonSpace, line.length());
                 Parsing parsing = state.getParsing();
-                Pattern startPattern = Pattern.compile(String.format(ADMONITION_START_FORMAT, parsing.ATTRIBUTENAME, parsing.LINK_TITLE_STRING));
+                Pattern startPattern = Pattern.compile(String.format(ADMONITION_START_PREFIX_FORMAT, parsing.ATTRIBUTENAME));
                 Matcher matcher = startPattern.matcher(trySequence);
 
-                if (matcher.find()) {
+                if (matcher.find() && matcher.start() == 0) {
                     // admonition block
                     BasedSequence openingMarker = line.subSequence(nextNonSpace + matcher.start(1), nextNonSpace + matcher.end(1));
                     BasedSequence info = line.subSequence(nextNonSpace + matcher.start(2), nextNonSpace + matcher.end(2));
-                    BasedSequence titleChars = matcher.group(3) == null ? BasedSequence.NULL : line.subSequence(nextNonSpace + matcher.start(3), nextNonSpace + matcher.end(3));
+                    int titleStart = Parsing.skipWhitespace(trySequence, matcher.end(2));
+                    BasedSequence titleChars = BasedSequence.NULL;
+                    if (titleStart < trySequence.length()) {
+                        titleChars = Parsing.parseLinkTitle(trySequence, titleStart);
+                        if (titleChars == null || !trySequence.subSequence(titleStart + titleChars.length(), trySequence.length()).trim().isEmpty()) {
+                            return BlockStart.none();
+                        }
+                    }
 
                     int contentOffset = options.contentIndent;
 
