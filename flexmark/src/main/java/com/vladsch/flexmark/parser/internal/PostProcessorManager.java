@@ -12,6 +12,7 @@ import com.vladsch.flexmark.util.data.DataHolder;
 import com.vladsch.flexmark.util.dependency.DependencyResolver;
 import com.vladsch.flexmark.util.dependency.DependentItem;
 import com.vladsch.flexmark.util.dependency.DependentItemMap;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 import java.util.*;
 
@@ -50,6 +51,7 @@ public class PostProcessorManager {
         return dependencyStages;
     }
 
+    @WithSpan("markdown.parse.post_process")
     public static Document processDocument(Document document, List<PostProcessorDependencyStage> processorDependencies) {
         if (!processorDependencies.isEmpty()) {
             PostProcessorManager manager = new PostProcessorManager(processorDependencies);

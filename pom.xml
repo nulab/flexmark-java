@@ -538,6 +538,15 @@
                 <version>${project.version}</version>
             </dependency>
 
+            <!-- Annotation-only dependency, spans are created by a Java agent
+                 (dd-java-agent with dd.trace.otel.enabled=true, or opentelemetry-javaagent).
+                 Inert without an agent. -->
+            <dependency>
+                <groupId>io.opentelemetry.instrumentation</groupId>
+                <artifactId>opentelemetry-instrumentation-annotations</artifactId>
+                <version>2.16.0</version>
+            </dependency>
+
             <!-- Common test dependencies -->
             <dependency>
                 <groupId>junit</groupId>
