@@ -18,6 +18,7 @@ import com.vladsch.flexmark.util.dependency.DependencyResolver;
 import com.vladsch.flexmark.util.misc.CharPredicate;
 import com.vladsch.flexmark.util.sequence.BasedSequence;
 import com.vladsch.flexmark.util.sequence.PrefixedSubSequence;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.BufferedReader;
@@ -271,16 +272,23 @@ public class DocumentParser implements ParserState {
      */
     public Document parse(CharSequence source) {
         BasedSequence input = BasedSequence.of(source);
-        int lineStart = 0;
-        int lineBreak;
-        int lineEOL;
-        int lineEnd;
         lineNumber = 0;
 
         documentBlockParser.initializeDocument(options, input);
         inlineParser.initializeDocument(documentBlockParser.getBlock());
 
         currentPhase = ParserPhase.PARSE_BLOCKS;
+        parseBlocks(input);
+
+        return finalizeAndProcess();
+    }
+
+    @WithSpan("markdown.parse.blocks")
+    private void parseBlocks(BasedSequence input) {
+        int lineStart = 0;
+        int lineBreak;
+        int lineEOL;
+        int lineEnd;
 
         while ((lineBreak = Parsing.findLineBreak(input, lineStart)) != -1) {
             BasedSequence line = input.subSequence(lineStart, lineBreak);
@@ -308,8 +316,6 @@ public class DocumentParser implements ParserState {
             incorporateLine(lineWithEOL);
             lineNumber++;
         }
-
-        return finalizeAndProcess();
     }
 
     public Document parse(Reader input) throws IOException {
@@ -745,6 +751,7 @@ public class DocumentParser implements ParserState {
     /**
      * Walk through a block & children recursively, parsing string content into inline content where appropriate.
      */
+    @WithSpan("markdown.parse.inlines")
     private void processInlines() {
         for (BlockParser blockParser : blockTracker.allBlockParsers()) {
             blockParser.parseInlines(inlineParser);
@@ -938,6 +945,7 @@ public class DocumentParser implements ParserState {
         }
     }
 
+    @WithSpan("markdown.parse.pre_process_paragraphs")
     private void preProcessParagraphs() {
         // here we run preProcessing stages
         if (blockTracker.getNodeClassifier().containsCategory(Paragraph.class)) {
@@ -951,6 +959,7 @@ public class DocumentParser implements ParserState {
         }
     }
 
+    @WithSpan("markdown.parse.pre_process_blocks")
     private void preProcessBlocks() {
         // here we run preProcessing stages
         HashSet<Class<?>> blockTypes = new HashSet<>();

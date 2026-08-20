@@ -18,6 +18,7 @@ import com.vladsch.flexmark.util.misc.Pair;
 import com.vladsch.flexmark.util.sequence.Escaping;
 import com.vladsch.flexmark.util.sequence.LineAppendable;
 import com.vladsch.flexmark.util.sequence.TagRange;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -203,6 +204,7 @@ public class HtmlRenderer implements IRender {
      * @param node   node to render
      * @param output appendable to use for the output
      */
+    @WithSpan("markdown.render")
     public void render(@NotNull Node node, @NotNull Appendable output, int maxTrailingBlankLines) {
         HtmlWriter htmlWriter = new HtmlWriter(output, htmlOptions.indentSize, htmlOptions.formatFlags, !htmlOptions.htmlBlockOpenTagEol, !htmlOptions.htmlBlockCloseTagEol);
         MainNodeRenderer renderer = new MainNodeRenderer(options, htmlWriter, node.getDocument());

@@ -17,6 +17,7 @@ import com.vladsch.flexmark.util.misc.Extension;
 import com.vladsch.flexmark.util.sequence.BasedSequence;
 import com.vladsch.flexmark.util.sequence.ReplacedBasedSequence;
 import com.vladsch.flexmark.util.sequence.mappers.SpecialLeadInHandler;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -353,6 +354,7 @@ public class Parser implements IParse {
      * @param input the text to parse
      * @return the root node
      */
+    @WithSpan("markdown.parse")
     public @NotNull Document parse(@NotNull BasedSequence input) {
         // NOTE: parser can only handle contiguous sequences with no out of base characters
         if (input instanceof ReplacedBasedSequence) {
@@ -379,6 +381,7 @@ public class Parser implements IParse {
      * @param input the text to parse
      * @return the root node
      */
+    @WithSpan("markdown.parse")
     public @NotNull Document parse(@NotNull String input) {
         DocumentParser documentParser = new DocumentParser(options
                 , blockParserFactories
@@ -398,6 +401,7 @@ public class Parser implements IParse {
      * @return the root node
      * @throws IOException when reading throws an exception
      */
+    @WithSpan("markdown.parse")
     public @NotNull Document parseReader(@NotNull Reader input) throws IOException {
         DocumentParser documentParser = new DocumentParser(options
                 , blockParserFactories
