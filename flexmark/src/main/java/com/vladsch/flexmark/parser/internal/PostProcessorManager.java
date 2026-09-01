@@ -12,6 +12,10 @@ import com.vladsch.flexmark.util.data.DataHolder;
 import com.vladsch.flexmark.util.dependency.DependencyResolver;
 import com.vladsch.flexmark.util.dependency.DependentItem;
 import com.vladsch.flexmark.util.dependency.DependentItemMap;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.context.Scope;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 import java.util.*;
@@ -72,7 +76,16 @@ public class PostProcessorManager {
             boolean hadGlobal = false;
             for (PostProcessorFactory dependent : stage.dependents) {
                 if (dependent.affectsGlobalScope()) {
-                    document = dependent.apply(document).processDocument(document);
+                    PostProcessor postProcessor = dependent.apply(document);
+                    Span span = startPostProcessorSpan(postProcessor);
+                    try (Scope ignored = span.makeCurrent()) {
+                        document = postProcessor.processDocument(document);
+                    } catch (Throwable t) {
+                        span.setStatus(StatusCode.ERROR, t.getClass().getSimpleName() + ": " + t.getMessage());
+                        throw t;
+                    } finally {
+                        span.end();
+                    }
                     hadGlobal = true;
                     // assume it no longer reflects reality;
                     classifyingNodeTracker = null;
@@ -94,28 +107,36 @@ public class PostProcessorManager {
                         }
 
                         ReversibleIterable<Node> nodes = classifyingNodeTracker.getCategoryItems(Node.class, dependentNodeTypes.keySet());
-                        for (Node node : nodes) {
-                            if (node.getParent() == null) continue; // was already removed
-                            // now we need to get the bitset for the excluded ancestors of the node, then intersect it with the actual ancestors of this factory
-                            int index;
-                            BitSet nodeAncestors;
-                            BitSet nodeExclusions;
-                            Set<Class<?>> excluded = dependentNodeTypes.get(node.getClass());
-                            if (excluded != null) {
-                                index = classifyingNodeTracker.getItems().indexOf(node);
-                                if (index != -1) {
-                                    nodeAncestors = classifyingNodeTracker.getNodeAncestryMap().get(index);
-                                    if (nodeAncestors != null) {
-                                        nodeExclusions = classifyingNodeTracker.getExclusionSet().indexBitSet(excluded);
-                                        nodeExclusions.and(nodeAncestors);
-                                        if (!nodeExclusions.isEmpty()) {
-                                            // has excluded ancestor
-                                            continue;
+                        Span span = startPostProcessorSpan(postProcessor);
+                        try (Scope ignored = span.makeCurrent()) {
+                            for (Node node : nodes) {
+                                if (node.getParent() == null) continue; // was already removed
+                                // now we need to get the bitset for the excluded ancestors of the node, then intersect it with the actual ancestors of this factory
+                                int index;
+                                BitSet nodeAncestors;
+                                BitSet nodeExclusions;
+                                Set<Class<?>> excluded = dependentNodeTypes.get(node.getClass());
+                                if (excluded != null) {
+                                    index = classifyingNodeTracker.getItems().indexOf(node);
+                                    if (index != -1) {
+                                        nodeAncestors = classifyingNodeTracker.getNodeAncestryMap().get(index);
+                                        if (nodeAncestors != null) {
+                                            nodeExclusions = classifyingNodeTracker.getExclusionSet().indexBitSet(excluded);
+                                            nodeExclusions.and(nodeAncestors);
+                                            if (!nodeExclusions.isEmpty()) {
+                                                // has excluded ancestor
+                                                continue;
+                                            }
                                         }
                                     }
                                 }
+                                postProcessor.process(classifyingNodeTracker, node);
                             }
-                            postProcessor.process(classifyingNodeTracker, node);
+                        } catch (Throwable t) {
+                            span.setStatus(StatusCode.ERROR, t.getClass().getSimpleName() + ": " + t.getMessage());
+                            throw t;
+                        } finally {
+                            span.end();
                         }
                     }
                 }
@@ -123,6 +144,14 @@ public class PostProcessorManager {
         }
 
         return document;
+    }
+
+    private static Span startPostProcessorSpan(PostProcessor postProcessor) {
+        // no-op span unless a Java agent (or the application) has wired GlobalOpenTelemetry
+        return GlobalOpenTelemetry.getTracer("com.vladsch.flexmark")
+                .spanBuilder("markdown.parse.post_processor")
+                .setAttribute("markdown.post_processor.class", postProcessor.getClass().getName())
+                .startSpan();
     }
 
     static DependentItemMap<PostProcessorFactory> prioritizePostProcessors(DependentItemMap<PostProcessorFactory> dependentMap) {
