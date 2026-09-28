@@ -18,6 +18,7 @@ import com.vladsch.flexmark.util.misc.Pair;
 import com.vladsch.flexmark.util.sequence.Escaping;
 import com.vladsch.flexmark.util.sequence.LineAppendable;
 import com.vladsch.flexmark.util.sequence.TagRange;
+import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -206,6 +207,10 @@ public class HtmlRenderer implements IRender {
      */
     @WithSpan("markdown.render")
     public void render(@NotNull Node node, @NotNull Appendable output, int maxTrailingBlankLines) {
+        Span span = Span.current();
+        span.setAttribute("markdown.node.type", node.getClass().getSimpleName());
+        span.setAttribute("markdown.input.length", node.getChars().length());
+
         HtmlWriter htmlWriter = new HtmlWriter(output, htmlOptions.indentSize, htmlOptions.formatFlags, !htmlOptions.htmlBlockOpenTagEol, !htmlOptions.htmlBlockCloseTagEol);
         MainNodeRenderer renderer = new MainNodeRenderer(options, htmlWriter, node.getDocument());
         if (renderer.htmlIdGenerator != HtmlIdGenerator.NULL && !(node instanceof Document)) {
@@ -218,6 +223,10 @@ public class HtmlRenderer implements IRender {
         // resolve any unresolved tracked offsets that are outside elements which resolve their own
         TrackedOffsetUtils.resolveTrackedOffsets(node.getChars(), htmlWriter, TRACKED_OFFSETS.get(renderer.getDocument()), maxTrailingBlankLines, SharedDataKeys.RUNNING_TESTS.get(options));
         renderer.dispose();
+
+        if (output instanceof CharSequence) {
+            span.setAttribute("markdown.output.length", ((CharSequence) output).length());
+        }
     }
 
     /**
