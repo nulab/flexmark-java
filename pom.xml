@@ -546,6 +546,13 @@
                 <artifactId>opentelemetry-instrumentation-annotations</artifactId>
                 <version>2.16.0</version>
             </dependency>
+            <!-- Test-only: in-memory span exporter for asserting on spans. Keep in step with the
+                 opentelemetry-api version pulled in transitively by the annotations artifact. -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-sdk-testing</artifactId>
+                <version>1.50.0</version>
+            </dependency>
 
             <!-- Common test dependencies -->
             <dependency>
