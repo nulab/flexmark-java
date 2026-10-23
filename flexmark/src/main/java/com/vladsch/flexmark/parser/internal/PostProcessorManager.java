@@ -76,9 +76,10 @@ public class PostProcessorManager {
             boolean hadGlobal = false;
             for (PostProcessorFactory dependent : stage.dependents) {
                 if (dependent.affectsGlobalScope()) {
-                    PostProcessor postProcessor = dependent.apply(document);
-                    Span span = startPostProcessorSpan(postProcessor);
+                    Span span = startPostProcessorSpan();
                     try (Scope ignored = span.makeCurrent()) {
+                        PostProcessor postProcessor = dependent.apply(document);
+                        span.setAttribute(POST_PROCESSOR_CLASS_ATTRIBUTE, postProcessor.getClass().getName());
                         document = postProcessor.processDocument(document);
                     } catch (Throwable t) {
                         span.setStatus(StatusCode.ERROR, t.getClass().getSimpleName() + ": " + t.getMessage());
@@ -98,17 +99,18 @@ public class PostProcessorManager {
                     }
 
                     Map<Class<?>, Set<Class<?>>> dependentNodeTypes = dependent.getNodeTypes();
-                    PostProcessor postProcessor = dependent.apply(document);
-                    BitSet exclusionSet = new BitSet();
-                    if (dependentNodeTypes != null) {
-                        for (Set<Class<?>> excluded : dependentNodeTypes.values()) {
-                            BitSet mapped = classifyingNodeTracker.getExclusionSet().indexBitSet(excluded);
-                            exclusionSet.or(mapped);
-                        }
+                    Span span = startPostProcessorSpan();
+                    try (Scope ignored = span.makeCurrent()) {
+                        PostProcessor postProcessor = dependent.apply(document);
+                        span.setAttribute(POST_PROCESSOR_CLASS_ATTRIBUTE, postProcessor.getClass().getName());
+                        BitSet exclusionSet = new BitSet();
+                        if (dependentNodeTypes != null) {
+                            for (Set<Class<?>> excluded : dependentNodeTypes.values()) {
+                                BitSet mapped = classifyingNodeTracker.getExclusionSet().indexBitSet(excluded);
+                                exclusionSet.or(mapped);
+                            }
 
-                        ReversibleIterable<Node> nodes = classifyingNodeTracker.getCategoryItems(Node.class, dependentNodeTypes.keySet());
-                        Span span = startPostProcessorSpan(postProcessor);
-                        try (Scope ignored = span.makeCurrent()) {
+                            ReversibleIterable<Node> nodes = classifyingNodeTracker.getCategoryItems(Node.class, dependentNodeTypes.keySet());
                             for (Node node : nodes) {
                                 if (node.getParent() == null) continue; // was already removed
                                 // now we need to get the bitset for the excluded ancestors of the node, then intersect it with the actual ancestors of this factory
@@ -132,12 +134,12 @@ public class PostProcessorManager {
                                 }
                                 postProcessor.process(classifyingNodeTracker, node);
                             }
-                        } catch (Throwable t) {
-                            span.setStatus(StatusCode.ERROR, t.getClass().getSimpleName() + ": " + t.getMessage());
-                            throw t;
-                        } finally {
-                            span.end();
                         }
+                    } catch (Throwable t) {
+                        span.setStatus(StatusCode.ERROR, t.getClass().getSimpleName() + ": " + t.getMessage());
+                        throw t;
+                    } finally {
+                        span.end();
                     }
                 }
             }
@@ -146,11 +148,16 @@ public class PostProcessorManager {
         return document;
     }
 
-    private static Span startPostProcessorSpan(PostProcessor postProcessor) {
+    private static final String POST_PROCESSOR_CLASS_ATTRIBUTE = "markdown.post_processor.class";
+
+    // Started before PostProcessorFactory.apply(...) so that work done while constructing the processor
+    // (which may be expensive, e.g. loading data to build matching patterns) is attributed to this span
+    // instead of showing up only as unexplained time in the enclosing post_process span. The processor
+    // class is therefore added as an attribute by the caller once the instance exists.
+    private static Span startPostProcessorSpan() {
         // no-op span unless a Java agent (or the application) has wired GlobalOpenTelemetry
         return GlobalOpenTelemetry.getTracer("com.vladsch.flexmark")
                 .spanBuilder("markdown.parse.post_processor")
-                .setAttribute("markdown.post_processor.class", postProcessor.getClass().getName())
                 .startSpan();
     }
 
