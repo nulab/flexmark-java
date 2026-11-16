@@ -121,7 +121,9 @@ public class TableParagraphPreProcessor implements ParagraphPreProcessor {
         int minColDash = minColumnDashes >= 2 ? minColumnDashes - 1 : 1;
         int minColDashes = minColumnDashes >= 3 ? minColumnDashes - 2 : 1;
         // to prevent conversion to arabic numbers, using string
-        String COL = String.format(Locale.US, "(?:" + "\\s*-{%d,}\\s*|\\s*:-{%d,}\\s*|\\s*-{%d,}:\\s*|\\s*:-{%d,}:\\s*" + ")", minCol, minColDash, minColDash, minColDashes);
+        // The column repetition below is possessive, so a column never backtracks into another alternative:
+        // the alternatives must stay ordered longest first (":-:" before ":-", "-:" before "-").
+        String COL = String.format(Locale.US, "(?:" + "\\s*+:-{%d,}+:\\s*+|\\s*+:-{%d,}+\\s*+|\\s*+-{%d,}+:\\s*+|\\s*+-{%d,}+\\s*+" + ")", minColDashes, minColDash, minColDash, minCol);
 
         boolean noIntelliJ = intellijDummyIdentifier.isEmpty();
         String add = noIntelliJ ? "" : TableFormatOptions.INTELLIJ_DUMMY_IDENTIFIER;
@@ -132,7 +134,10 @@ public class TableParagraphPreProcessor implements ParagraphPreProcessor {
 
         String regex = "\\|" + COL + "\\|?\\s*" + "|" +
                 COL + "\\|\\s*" + "|" +
-                "\\|?" + "(?:" + COL + "\\|)+" + COL + "\\|?\\s*";
+                // Not "(?:COL\\|)+COL": java.util.regex matches a greedy group repetition recursively, one set of stack
+                // frames per column, and a separator line with several hundred columns overflowed the stack.
+                // A possessive repetition is matched in a loop.
+                "\\|?" + COL + "(?:\\|" + COL + ")++" + "\\|?\\s*";
 
         String withIntelliJ = regex.replace("\\s", sp).replace("\\|", pipe).replace("-", ds);
 
